@@ -18,7 +18,7 @@ describe("public site content", () => {
     expect(CONTACTS.max.phone).toBe("+7 993 983-80-80");
     expect(CONTACTS.max.href).toBe("https://max.ru/");
     expect(CONTACTS.socials[0]).toEqual({ label: "MAX", href: "https://max.ru/" });
-    expect(CONTACTS.address).toBe("Санкт-Петербург, проспект Маршала Блюхера, 12к7");
+    expect(CONTACTS.address).toBe("Санкт-Петербург, Пискаревский проспект, 144АК, 2 этаж");
     expect(CONTACTS.socials).toHaveLength(8);
     expect(CONTACTS.socials.every((item) => item.href.startsWith("https://"))).toBe(true);
   });

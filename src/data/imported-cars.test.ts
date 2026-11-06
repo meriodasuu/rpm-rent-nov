@@ -21,7 +21,7 @@ describe("Avito workbook fleet import", () => {
     });
     expect(bmwM8?.features).toContain("Поколение: F91/F92 (2019—2022)");
     expect(bmwM8?.features).toContain("Комплектация: Competition");
-    expect(bmwM8?.rentalConditions).toContain("Тариф на 12 часов не указан");
+    expect(bmwM8?.rentalConditions).toContain("Тариф на 12 часов уточняется у менеджера");
   });
 
   it("references Yandex Disk through the site proxy and uses a placeholder only when the disk has no folder", () => {
@@ -34,5 +34,17 @@ describe("Avito workbook fleet import", () => {
         expect(decodeURIComponent(image.url)).toMatch(/\/(ИИ NEW|ИИnew|ИИ)\//i);
       }
     }
+  });
+
+  it("does not expose import or workbook implementation details in public car copy", () => {
+    const publicCopy = importedCars.flatMap((car) => [
+      car.shortDescription,
+      car.description,
+      car.seoDescription ?? "",
+      ...car.features,
+      ...car.rentalConditions,
+    ]).join("\n");
+
+    expect(publicCopy).not.toMatch(/импортирован|рабочего стандарта|зелён|таблиц(?:ы|е)/i);
   });
 });

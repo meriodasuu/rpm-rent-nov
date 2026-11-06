@@ -4,6 +4,7 @@ import { DomainError } from "@/lib/domain/errors";
 import { FixedWindowRateLimiter } from "@/lib/rate-limit";
 import { notifyLeadCreated } from "@/lib/lead-notification";
 import { directLeadSchema } from "@/lib/validation";
+import { getRequestOriginDomain } from "@/lib/request-domain";
 
 const limiter = new FixedWindowRateLimiter(8, 60_000);
 
@@ -18,9 +19,15 @@ export async function POST(request: NextRequest) {
   const parsed = directLeadSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ message: "Проверьте заполнение формы", errors: parsed.error.flatten().fieldErrors }, { status: 422 });
   try {
-    const result = await (await getStore()).createLead(parsed.data);
+    const store = await getStore();
+    const result = await store.createLead(parsed.data, getRequestOriginDomain(request));
     if (result.created) {
-      await notifyLeadCreated(result.lead);
+      try {
+        const delivered = await notifyLeadCreated(result.lead, await store.getTelegramOperators());
+        if (!delivered) console.error("lead.telegram-notification.failed", result.lead.id);
+      } catch (error) {
+        console.error("lead.telegram-notification.failed", result.lead.id, error instanceof Error ? error.name : "UnknownError");
+      }
       if (process.env.CRM_WEBHOOK_URL) fetch(process.env.CRM_WEBHOOK_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "lead.created", lead: result.lead }) }).catch(() => undefined);
     }
     return NextResponse.json({ ok: true, id: result.lead.id }, { status: result.created ? 201 : 200 });

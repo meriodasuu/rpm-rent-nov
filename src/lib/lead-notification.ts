@@ -1,29 +1,22 @@
-import type { Lead } from "@/types/domain";
 
-const botApiUrl = (method: string) => `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/${method}`;
+import { trafficSourceLabel } from "@/lib/direct-traffic";
+import type { Lead, TelegramOperator } from "@/types/domain";
+import { sendTelegramMessage } from "@/lib/telegram";
 
-export const notifyLeadCreated = async (lead: Lead): Promise<boolean> => {
-  const chatId = process.env.TELEGRAM_ALERT_CHAT_ID?.trim();
-  if (!process.env.TELEGRAM_BOT_TOKEN || !chatId) return false;
+export const notifyLeadCreated = async (lead: Lead, operators: TelegramOperator[]): Promise<boolean> => {
+  const recipients = [...new Set(operators.flatMap((operator) => operator.telegramUserId ? [operator.telegramUserId] : []))];
+  if (!recipients.length) return false;
 
   const text = [
-    "🎯 Новый лид Яндекс.Директ",
+    `🎯 Новый лид ${trafficSourceLabel(lead.source)}`,
     `Автомобиль: ${lead.carTitle}`,
     `Дата начала: ${lead.startAt}`,
     `Телефон: ${lead.phone}`,
+    `Домен: ${lead.originDomain ?? "не определён"}`,
     `Посадочная: ${lead.landingPath}`,
-    `Источник: ${lead.utm.yclid ? "yclid" : "utm_source=yandex"}`
+    `Источник: ${lead.utm.utm_source || (lead.utm.rb_clickid ? "rb_clickid" : "yclid")}`
   ].join("\n");
 
-  try {
-    const response = await fetch(botApiUrl("sendMessage"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true })
-    });
-    const result: unknown = await response.json();
-    return response.ok && typeof result === "object" && result !== null && "ok" in result && result.ok === true;
-  } catch {
-    return false;
-  }
+  const results = await Promise.all(recipients.map((recipient) => sendTelegramMessage(recipient, text)));
+  return results.every(Boolean);
 };

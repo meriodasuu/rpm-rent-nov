@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { FaqList } from "@/components/faq-list";
 import { getStore } from "@/lib/data";
+import { serializeJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Вопросы об аренде", description: "Расчёт стоимости, проверка дат, залог, получение автомобиля и подтверждение обращения.", alternates: { canonical: "/faq" } };
@@ -11,6 +12,11 @@ export const metadata: Metadata = { title: "Вопросы об аренде", d
 export default async function FaqPage() {
   const faqs = await (await getStore()).getFaqs();
   return <div className="page"><div className="container">
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd({
+      "@context": "https://schema.org", "@type": "FAQPage",
+      mainEntity: faqs.map((faq) => ({ "@type": "Question", name: faq.question,
+        acceptedAnswer: { "@type": "Answer", text: faq.answer } }))
+    }) }} />
     <Breadcrumbs items={[{ label: "Главная", href: "/" }, { label: "Вопросы" }]} />
     <div className="page-intro"><div><p className="eyebrow">Перед арендой</p><h1 className="title">Ответы на вопросы до оформления</h1></div><p className="subtitle">Здесь собраны общие правила процесса. Требования к возрасту, стажу, пробегу и страхованию зависят от конкретного автомобиля и публикуются в его карточке.</p></div>
     <FaqList items={faqs} />

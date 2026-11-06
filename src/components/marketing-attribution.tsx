@@ -1,15 +1,17 @@
 "use client";
 
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { isYandexDirectAttribution } from "@/lib/direct-traffic";
+import { isPaidLeadAttribution } from "@/lib/direct-traffic";
 
 const attributionKey = "rpm-marketing-attribution";
 const consentKey = "rpm-cookie-consent";
-const trackedParams = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "yclid", "gclid", "fbclid", "roistat_visit"];
+const trackedParams = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "yclid", "rb_clickid", "gclid", "fbclid", "roistat_visit"];
 type Attribution = Record<string, string> & { landingPath?: string; referrer?: string };
 
 export function MarketingAttribution() {
+  const pathname = usePathname();
   const callTrackingUrl = process.env.NEXT_PUBLIC_CALLTRACKING_SCRIPT_URL;
   const [consent, setConsent] = useState<"accepted" | "declined" | null>(null);
   useEffect(() => {
@@ -20,12 +22,15 @@ export function MarketingAttribution() {
       if (value) current[key] = value.slice(0, 200);
     }
     const previous = readAttribution();
-    const attribution: Attribution = { ...previous, ...current, landingPath: previous.landingPath ?? window.location.pathname, referrer: previous.referrer ?? document.referrer };
+    const freshCampaign = Object.keys(current).length > 0;
+    const attribution: Attribution = freshCampaign
+      ? { ...current, landingPath: window.location.pathname, referrer: document.referrer }
+      : { ...previous, landingPath: previous.landingPath ?? window.location.pathname, referrer: previous.referrer ?? document.referrer };
     if (Object.keys(attribution).length > 0) window.sessionStorage.setItem(attributionKey, JSON.stringify(attribution));
-    const isDirect = isYandexDirectAttribution(params) || window.sessionStorage.getItem("rpm-yandex-direct") === "1";
-    if (isDirect) window.sessionStorage.setItem("rpm-yandex-direct", "1");
+    const isDirect = isPaidLeadAttribution(new URLSearchParams(attribution));
+    window.sessionStorage.setItem("rpm-paid-lead", isDirect ? "1" : "0");
     document.documentElement.dataset.directTraffic = isDirect ? "true" : "false";
-  }, []);
+  }, [pathname]);
   useEffect(() => {
     const syncConsent = () => {
       const value = window.localStorage.getItem(consentKey);

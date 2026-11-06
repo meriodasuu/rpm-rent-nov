@@ -1,0 +1,36 @@
+.page { padding: 32px 0 56px; }
+.container { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+.heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.heading h1 { margin: 4px 0 8px; font-size: clamp(28px, 4vw, 44px); }
+.heading p { margin: 0; color: #69717c; }
+.kicker { color: #8b6b2b !important; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.health { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 22px; }
+.health span, .badge { border-radius: 999px; padding: 7px 11px; background: #f0f2f4; color: #39414a; font-size: 12px; font-weight: 800; }
+.health .available, .ok { background: #e2f4e9; color: #17663a; }
+.health .unavailable, .failed, .critical { background: #fde8e6; color: #9d291f; }
+.warning { background: #fff1cf; color: #805a00; }
+.error { background: #fbe3da; color: #943d22; }
+.notLinked { background: #edf0f3; color: #5a626d; }
+.notice { border: 1px solid #e8c874; border-radius: 14px; padding: 16px; background: #fff8e6; color: #72530d; margin-bottom: 20px; }
+.tableWrap { overflow-x: auto; border: 1px solid #e3e6e9; border-radius: 16px; background: white; }
+.table { width: 100%; border-collapse: collapse; min-width: 920px; }
+.table th { padding: 12px 14px; text-align: left; background: #f7f8f9; color: #6d747c; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.table td { padding: 15px 14px; border-top: 1px solid #eceef0; vertical-align: top; }
+.table strong, .table small { display: block; }
+.table small { margin-top: 4px; color: #737b84; }
+.table a { color: #245c9b; text-decoration: underline; text-underline-offset: 3px; }
+.rowActions { min-width: 300px; }
+.empty { border: 1px dashed #cfd5db; border-radius: 16px; padding: 32px; text-align: center; color: #69717c; }
+.panel { border: 1px solid #e3e6e9; border-radius: 16px; background: white; padding: 20px; margin-bottom: 20px; }
+.panel h2 { margin: 0 0 16px; }
+.comparisonTable { width: 100%; border-collapse: collapse; }
+.comparisonTable th, .comparisonTable td { padding: 12px; border-bottom: 1px solid #eceef0; text-align: left; }
+.back { display: inline-block; margin-bottom: 16px; color: #245c9b; }
+.history { display: grid; gap: 10px; }
+.history article { border-left: 3px solid #d4d8dc; padding: 8px 12px; }
+.history article p { margin: 4px 0; }
+
+@media (max-width: 760px) {
+  .heading { display: grid; }
+  .container { width: min(100% - 20px, 1180px); }
+}

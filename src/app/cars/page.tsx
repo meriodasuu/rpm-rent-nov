@@ -7,8 +7,8 @@ import { assertRentalPeriod, parseDateOnly } from "@/lib/domain/dates";
 import { CatalogClient } from "./catalog-client";
 
 export const metadata: Metadata = {
-  title: "Каталог автомобилей для аренды",
-  description: "Сравните автомобили RPM Rent по классу, кузову и стоимости. Укажите даты, чтобы проверить доступность.",
+  title: "Каталог автомобилей в аренду в Санкт-Петербурге",
+  description: "Каталог премиальных автомобилей в аренду в Санкт-Петербурге: сравните класс, кузов и стоимость, затем проверьте доступность на нужные даты.",
   alternates: { canonical: "/cars" }
 };
 
@@ -30,7 +30,7 @@ export default async function CarsPage({ searchParams }: { searchParams: Promise
       <div className="container">
         <Breadcrumbs items={[{ label: "Главная", href: "/" }, { label: "Каталог" }]} />
         <div className="page-intro catalog-intro">
-          <div><p className="eyebrow">Автопарк RPM Rent</p><h1 className="title">Найдите автомобиль под свой маршрут</h1></div>
+          <div><p className="eyebrow">Автопарк RPM Rent</p><h1 className="title">Автомобили в аренду в Санкт-Петербурге</h1></div>
           <div><p className="subtitle">Сравнивайте кузов, класс и суточную ставку. Откройте карточку автомобиля, чтобы увидеть фотографии, характеристики и перейти к проверке дат. Условия залога согласовываются индивидуально.</p>{hasValidPeriod && start && end ? <p className="period-banner"><CalendarDays size={17} /> Проверен период с {new Date(`${start}T00:00:00Z`).toLocaleDateString("ru-RU")} по {new Date(`${end}T00:00:00Z`).toLocaleDateString("ru-RU")}. Занятые машины остаются видимыми с объяснением.</p> : null}</div>
         </div>
 

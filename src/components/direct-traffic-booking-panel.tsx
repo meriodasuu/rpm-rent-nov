@@ -1,16 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { getMarketingAttribution } from "./marketing-attribution";
+import { isPaidLeadAttribution } from "@/lib/direct-traffic";
 import { DirectLeadForm } from "./direct-lead-form";
 
 const useDirectTraffic = (directOnEntry: boolean) => {
+  const pathname = usePathname();
   const [isDirect, setIsDirect] = useState(directOnEntry);
   useEffect(() => {
-    if (!directOnEntry && window.sessionStorage.getItem("rpm-yandex-direct") !== "1") return;
-    const frame = window.requestAnimationFrame(() => setIsDirect(true));
+    const frame = window.requestAnimationFrame(() => {
+      const params = new URLSearchParams(window.location.search);
+      const hasCampaign = [...params.keys()].some((key) => key.startsWith("utm_") || key === "yclid" || key === "rb_clickid");
+      setIsDirect(hasCampaign ? isPaidLeadAttribution(params) : isPaidLeadAttribution(new URLSearchParams(getMarketingAttribution())));
+    });
     return () => window.cancelAnimationFrame(frame);
-  }, [directOnEntry]);
+  }, [directOnEntry, pathname]);
   return isDirect;
 };
 

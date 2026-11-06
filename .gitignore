@@ -19,3 +19,7 @@ Thumbs.db
 .codex-docx-render/
 .playwright-cli/
 .worktrees/
+.pnpm-store/
+/artifacts/
+/output/
+/tmp/

@@ -1,4 +1,4 @@
-import type { Booking, BookingStatus, Car, Faq, Lead, LeadCreateResult, Location, Service } from "@/types/domain";
+import type { Booking, BookingStatus, Car, Faq, Lead, LeadCreateResult, Location, OriginDomain, Service, TelegramOperator } from "@/types/domain";
 import type { BookingInput, DirectLeadInput } from "@/lib/validation";
 
 export interface DataStore {
@@ -17,10 +17,16 @@ export interface DataStore {
   getLocationBySlug(slug: string, options?: { includeHidden?: boolean }): Promise<Location | null>;
   saveLocation(location: Location): Promise<Location>;
   deleteLocation(id: string): Promise<void>;
-  createBooking(input: BookingInput): Promise<Booking>;
-  createLead(input: DirectLeadInput): Promise<LeadCreateResult>;
+  createBooking(input: BookingInput, originDomain?: OriginDomain | null): Promise<Booking>;
+  createLead(input: DirectLeadInput, originDomain?: OriginDomain | null): Promise<LeadCreateResult>;
   isCarAvailable(carId: string, startDate: string, endDate: string): Promise<boolean>;
   getBookings(): Promise<Booking[]>;
   getLeads(): Promise<Lead[]>;
+  updateInquiryComment(kind: "booking" | "lead", id: string, comment: string | null): Promise<void>;
+  updateLeadStatus(id: string, status: import("@/types/domain").LeadStatus): Promise<void>;
   updateBookingStatus(id: string, status: BookingStatus): Promise<void>;
+  getTelegramOperators(): Promise<TelegramOperator[]>;
+  getTelegramOperatorByUserId(telegramUserId: string): Promise<TelegramOperator | null>;
+  activateTelegramOperator(input: { telegramUserId: string; username: string; bootstrapAdminUsernames: string[] }): Promise<TelegramOperator | null>;
+  inviteTelegramOperator(input: { username: string }): Promise<TelegramOperator>;
 }

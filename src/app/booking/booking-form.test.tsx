@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 import { BookingForm } from "./booking-form";
 import type { Car } from "@/types/domain";
 
@@ -14,7 +15,7 @@ const car: Car = {
 
 describe("BookingForm", () => {
   it("asks for contact details without birth or driving licence dates", () => {
-    const html = renderToStaticMarkup(<BookingForm cars={[car]} services={[]} />);
+    const html = renderToStaticMarkup(<BookingForm cars={[car]} services={[]} initialCarSlug="test-car" />);
 
     expect(html).toContain('name="customerName"');
     expect(html).toContain('name="phone"');
@@ -25,12 +26,19 @@ describe("BookingForm", () => {
   });
 
   it("marks the required contacts, keeps consent enabled, and uses the rental CTA", () => {
-    const html = renderToStaticMarkup(<BookingForm cars={[car]} services={[]} />);
+    const html = renderToStaticMarkup(<BookingForm cars={[car]} services={[]} initialCarSlug="test-car" />);
 
     expect(html).toContain('for="customerName">Имя <span aria-hidden="true">*</span>');
     expect(html).toContain('for="phone">Телефон <span aria-hidden="true">*</span>');
     expect(html).toMatch(/<input type="checkbox" disabled=""[^>]* checked=""/);
     expect(html).toContain("Оформить машину");
     expect(html).not.toContain(">Отправить обращение<");
+  });
+
+  it("does not preselect a car when booking is opened without a car parameter", () => {
+    const html = renderToStaticMarkup(<BookingForm cars={[car]} services={[]} />);
+
+    expect(html).toContain("Выберите автомобиль");
+    expect(html).not.toContain("Сводка оформления");
   });
 });

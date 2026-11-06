@@ -44,7 +44,9 @@ const booking = (overrides: Partial<Booking> = {}): Booking => ({
   privacyConsentAt: "2026-08-12T07:00:00.000Z",
   status: "NEW",
   createdAt: "2026-08-12T06:30:00.000Z",
-  ...overrides
+  ...overrides,
+  bookingNumber: overrides.bookingNumber ?? 1,
+  originDomain: overrides.originDomain ?? null
 });
 
 const car = (id: string): Car => ({

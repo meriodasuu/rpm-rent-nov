@@ -29,7 +29,9 @@ export function CatalogClient({ cars, availability, initialClass, initialMaxPric
     .sort((a, b) => sort === "price-asc" ? a.pricePerDay - b.pricePerDay : sort === "price-desc" ? b.pricePerDay - a.pricePerDay : a.recommendedOrder - b.recommendedOrder), [cars, filters, sort]);
 
   useEffect(() => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(location.search);
+    // Filters own only these fields; preserve attribution until analytics loads.
+    for (const key of ["class", "maxPrice", "sort", "start", "end"]) params.delete(key);
     if (filters.classes.length) params.set("class", filters.classes.join(","));
     if (filters.maxPrice < empty.maxPrice) params.set("maxPrice", String(filters.maxPrice));
     if (sort !== "recommended") params.set("sort", sort);

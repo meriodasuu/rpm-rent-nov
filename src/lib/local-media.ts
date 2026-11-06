@@ -24,7 +24,7 @@ export const readLocalMedia = async (path: string, root = process.env.LOCAL_MEDI
   const absolutePath = resolveLocalMediaPath(path, root);
   if (!absolutePath) return null;
   try {
-    const body = await readFile(absolutePath);
+    const body = await readFile(/* turbopackIgnore: true */ absolutePath);
     return { body, contentType: contentTypes[extname(absolutePath).toLowerCase()] || "application/octet-stream" };
   } catch {
     return null;

@@ -3,8 +3,8 @@ export const CarImportedDetails = ({ features, rentalConditions }: { features: s
   return (
     <section className="detail-section">
       <div className="detail-section-head">
-        <div><p className="eyebrow">Из рабочего стандарта</p><h2>Комплектация и тарифы</h2></div>
-        <p>Параметры перенесены из зелёных столбцов таблицы RPM.</p>
+        <div><p className="eyebrow">Дополнительные параметры</p><h2>Комплектация и тарифы</h2></div>
+        <p>Основные характеристики и доступные тарифы собраны в одной карточке.</p>
       </div>
       <div className="spec-grid">
         {features.map((item, index) => <div className="spec" key={`feature-${index}`}><span>Характеристика</span><strong>{item}</strong></div>)}

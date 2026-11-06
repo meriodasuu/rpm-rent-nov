@@ -3,6 +3,8 @@ import { getStore } from "@/lib/data";
 import { bookingSchema } from "@/lib/validation";
 import { DomainError } from "@/lib/domain/errors";
 import { FixedWindowRateLimiter } from "@/lib/rate-limit";
+import { notifyBookingCreated } from "@/lib/telegram";
+import { getRequestOriginDomain } from "@/lib/request-domain";
 
 const limiter = new FixedWindowRateLimiter(8, 60_000);
 
@@ -25,7 +27,13 @@ export async function POST(request: NextRequest) {
   const parsed = bookingSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ message: "Проверьте заполнение формы", errors: parsed.error.flatten().fieldErrors }, { status: 422 });
   try {
-    const booking = await (await getStore()).createBooking(parsed.data);
+    const store = await getStore();
+    const booking = await store.createBooking(parsed.data, getRequestOriginDomain(request));
+    try {
+      await notifyBookingCreated(booking, await store.getTelegramOperators());
+    } catch (error) {
+      console.error("booking.telegram-notification.failed", error instanceof Error ? error.name : "UnknownError");
+    }
     if (process.env.CRM_WEBHOOK_URL) {
       fetch(process.env.CRM_WEBHOOK_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "booking.created", booking }) }).catch(() => undefined);
     }

@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
     localPatterns: [
       { pathname: "/images/**", search: "" },
       { pathname: "/api/media/yandex" },
+      // The route validates its `path` parameter before reading storage. Keeping
+      // the query unrestricted lets Next resize uploaded images without opening
+      // the optimizer to arbitrary local paths.
+      { pathname: "/api/media/storage" },
     ],
   },
   async redirects() {

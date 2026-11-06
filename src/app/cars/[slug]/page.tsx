@@ -12,18 +12,21 @@ import { getCarEditorial } from "@/lib/content";
 import { getStore } from "@/lib/data";
 import { bookingPolicyProblem } from "@/lib/domain/booking";
 import { assertRentalPeriod, parseDateOnly, todayInBusinessTimeZone } from "@/lib/domain/dates";
-import { isYandexDirectAttribution } from "@/lib/direct-traffic";
+import { isPaidLeadAttribution } from "@/lib/direct-traffic";
 import { formatDeposit, formatPrice } from "@/lib/format";
+import { socialPreviewImage } from "@/config/social-preview";
+import { buildCarSeoTitle, siteUrl, serializeJsonLd } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const car = await (await getStore()).getCarBySlug(slug);
+  const store = await getStore();
+  const [car, cars] = await Promise.all([store.getCarBySlug(slug), store.getCars()]);
   if (!car) return { title: "Автомобиль не найден" };
   return {
-    title: `${car.title} — аренда и прокат в Санкт-Петербурге`,
-    description: `Аренда ${car.title} в Санкт-Петербурге: стоимость в сутки, условия и заявка на удобную дату в RPM Rent.`,
+    title: { absolute: buildCarSeoTitle(car, cars) },
+    description: car.seoDescription || `Аренда ${car.title} в Санкт-Петербурге: стоимость в сутки, условия и заявка на удобную дату в RPM Rent.`,
     alternates: { canonical: `/cars/${car.slug}` },
-    openGraph: { images: car.images[0] ? [{ url: car.images[0].url, alt: car.images[0].alt }] : [] }
+    openGraph: { images: [socialPreviewImage] }
   };
 }
 
@@ -44,7 +47,7 @@ export default async function CarPage({ params, searchParams }: { params: Promis
   const policyProblem = bookingPolicyProblem(car);
   const busyForPeriod = periodAvailable === false && !policyProblem;
   const bookable = !policyProblem && !busyForPeriod;
-  const isDirect = isYandexDirectAttribution(new URLSearchParams(Object.entries(period).flatMap(([key, value]) => value ? [[key, value]] : [])));
+  const isDirect = isPaidLeadAttribution(new URLSearchParams(Object.entries(period).flatMap(([key, value]) => value ? [[key, value]] : [])));
 
   const editorial = getCarEditorial(car);
   const specs = [
@@ -73,6 +76,23 @@ export default async function CarPage({ params, searchParams }: { params: Promis
 
   return (
     <div className="page car-detail-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd({
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "Service", "@id": `${siteUrl}/cars/${car.slug}#rental`,
+            name: `Аренда ${car.title}`, url: `${siteUrl}/cars/${car.slug}`,
+            serviceType: "Аренда автомобиля", areaServed: "Санкт-Петербург",
+            provider: { "@id": `${siteUrl}/#organization` },
+            offers: { "@type": "Offer", url: `${siteUrl}/cars/${car.slug}`, priceCurrency: "RUB",
+              priceSpecification: { "@type": "UnitPriceSpecification", price: car.pricePerDay, priceCurrency: "RUB", unitText: "сутки" } }
+          },
+          { "@type": "BreadcrumbList", itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Главная", item: siteUrl },
+            { "@type": "ListItem", position: 2, name: "Каталог", item: `${siteUrl}/cars` },
+            { "@type": "ListItem", position: 3, name: car.title, item: `${siteUrl}/cars/${car.slug}` }
+          ] }
+        ]
+      }) }} />
       <div className="container">
         <Breadcrumbs items={[{ label: "Главная", href: "/" }, { label: "Каталог", href: "/cars" }, { label: car.title }]} />
         <div className="page-intro car-intro"><div><p className="eyebrow">{car.brand} · {car.vehicleClass}</p><h1 className="title">{car.title}</h1></div><div><p className="car-intro-index">RPM / {String(car.recommendedOrder).padStart(2, "0")}</p><p className="subtitle">{editorial.intro}</p></div></div>

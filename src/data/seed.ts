@@ -248,5 +248,6 @@ export const createSeedDatabase = (): DevDatabase => ({
   faqs: structuredClone(seedFaqs),
   locations: structuredClone(seedLocations),
   bookings: [],
-  leads: []
+  leads: [],
+  telegramOperators: []
 });

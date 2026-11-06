@@ -76,12 +76,16 @@ export type Location = {
 };
 
 export type BookingStatus = "NEW" | "IN_PROGRESS" | "CONFIRMED" | "DECLINED" | "CANCELLED" | "COMPLETED";
-export type LeadStatus = "NEW";
+export type LeadStatus = "NEW" | "IN_PROGRESS" | "COMPLETED" | "DECLINED";
+export type OriginDomain = "rpm-rent.ru" | "rpmrent.ru";
+export type TelegramOperatorRole = "ADMIN" | "OPERATOR";
+export type TelegramOperator = { id: string; telegramUserId: string | null; username: string; role: TelegramOperatorRole; createdAt: string };
 
 export type BookingServiceSnapshot = { id: string; title: string; price: number };
 
 export type Booking = {
   id: string;
+  bookingNumber: number;
   carId: string;
   carTitle: string;
   startAt: string;
@@ -101,12 +105,14 @@ export type Booking = {
   additionalServiceIds: string[];
   additionalServicesSnapshot: BookingServiceSnapshot[];
   comment: string | null;
+  managerComment?: string | null;
   rentalDays: number;
   pricePerDaySnapshot: number;
   rentalPrice: number;
   additionalServicesPrice: number;
   deposit: number;
   source: string;
+  originDomain: OriginDomain | null;
   utm: Record<string, string>;
   referrer: string | null;
   idempotencyKey: string;
@@ -121,7 +127,9 @@ export type Lead = {
   carTitle: string;
   startAt: string;
   phone: string;
-  source: "yandex_direct";
+  managerComment?: string | null;
+  source: "yandex_direct" | "vk_ads";
+  originDomain: OriginDomain | null;
   utm: Record<string, string>;
   landingPath: string;
   referrer: string | null;
@@ -140,4 +148,5 @@ export type DevDatabase = {
   locations: Location[];
   bookings: Booking[];
   leads: Lead[];
+  telegramOperators: TelegramOperator[];
 };

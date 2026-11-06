@@ -4,7 +4,6 @@ import { ArrowRight, CarFront, Plus } from "lucide-react";
 import { getStore } from "@/lib/data";
 import { formatDeposit, formatPrice, formatRentalDate } from "@/lib/format";
 import { getNextActiveBooking } from "@/lib/admin-operations";
-import { isStorageMediaUrl } from "@/lib/admin-media";
 import { isYandexMediaUrl } from "@/lib/yandex-public-media";
 
 export const metadata = { title: "Автопарк" };
@@ -38,7 +37,7 @@ export default async function AdminCarsPage() {
               return (
                 <article key={car.id} className="admin-fleet-row">
                   <div className="admin-fleet-image">
-                    {car.images[0] ? <Image src={car.images[0].url} alt="" fill sizes="112px" unoptimized={isYandexMediaUrl(car.images[0].url) || isStorageMediaUrl(car.images[0].url)} /> : <CarFront aria-hidden="true" size={25} />}
+                    {car.images[0] ? <Image src={car.images[0].url} alt="" fill sizes="112px" unoptimized={isYandexMediaUrl(car.images[0].url)} /> : <CarFront aria-hidden="true" size={25} />}
                   </div>
                   <div className="admin-fleet-name">
                     <strong>{car.title}</strong>

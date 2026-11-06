@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { LegalPolicyPage } from "@/components/legal-policy-page";
 
-export const metadata: Metadata = { title: "Политика обработки и конфиденциальности персональных данных" };
+export const metadata: Metadata = {
+  title: "Политика обработки и конфиденциальности персональных данных",
+  description: "Политика обработки персональных данных ООО «РПМ ГРУПП» для пользователей сайта RPM Rent.",
+  alternates: { canonical: "/personal-data-policy" }
+};
 
 export default function PersonalDataPolicyPage() {
   return <LegalPolicyPage title="Политика обработки и конфиденциальности персональных данных" intro="Подробная политика ООО «РПМ ГРУПП» для пользователей сайта и клиентов." sections={[

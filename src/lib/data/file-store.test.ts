@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSeedDatabase } from "@/data/seed";
-import { bookingSchema, type BookingInput } from "@/lib/validation";
+import { bookingSchema, directLeadSchema, type BookingInput } from "@/lib/validation";
 import type { DevDatabase } from "@/types/domain";
 import { FileStore } from "./file-store";
 
@@ -54,12 +54,58 @@ describe("FileStore booking integrity", () => {
     expect(rejected && rejected.status === "rejected" ? rejected.reason.message : "").toContain("уже занят");
   });
 
+  it("persists and clears manager comments for both inquiry kinds without changing client comments or status", async () => {
+    const booking = await store.createBooking(bookingInput({ comment: "Нужна доставка" }));
+    const { lead } = await store.createLead(directLeadSchema.parse({
+      carId: buildSeed().cars[0]!.id, startAt: "2027-01-10", phone: "+7 999 111-22-33", privacyConsent: true,
+      utm: { utm_source: "yandex" }, landingPath: "/cars/test", referrer: "", idempotencyKey: crypto.randomUUID()
+    }));
+    await store.updateInquiryComment("booking", booking.id, "Согласовано\nК 12:00");
+    await store.updateInquiryComment("lead", lead.id, "Перезвонить");
+    const reopened = new FileStore(path.join(directory, "db.json"), buildSeed);
+    expect((await reopened.getBookings())[0]).toMatchObject({ comment: "Нужна доставка", managerComment: "Согласовано\nК 12:00", status: "NEW" });
+    expect((await reopened.getLeads())[0]).toMatchObject({ managerComment: "Перезвонить", status: "NEW" });
+    await reopened.updateInquiryComment("booking", booking.id, null);
+    await reopened.updateInquiryComment("lead", lead.id, null);
+    expect((await store.getBookings())[0]?.managerComment).toBeNull();
+    expect((await store.getLeads())[0]?.managerComment).toBeNull();
+    await expect(store.updateInquiryComment("booking", lead.id, "wrong kind")).rejects.toThrow("Обращение не найдено");
+  });
+
   it("returns the original booking for an idempotent retry", async () => {
     const input = bookingInput();
     const first = await store.createBooking(input);
     const second = await store.createBooking(input);
     expect(second.id).toBe(first.id);
     expect((await store.getBookings())).toHaveLength(1);
+  });
+
+  it("stores an idempotent Direct lead without reserving the requested date", async () => {
+    const input = directLeadSchema.parse({
+      carId: buildSeed().cars[0]!.id, startAt: "2027-01-10", phone: "+7 999 111-22-33", privacyConsent: true,
+      utm: { utm_source: "yandex", yclid: "123" }, landingPath: "/cars/test", referrer: "", idempotencyKey: crypto.randomUUID()
+    });
+    const first = await store.createLead(input);
+    const second = await store.createLead(input);
+    expect(second.lead.id).toBe(first.lead.id);
+    expect((await store.getLeads())).toHaveLength(1);
+    await expect(store.createBooking(bookingInput())).resolves.toMatchObject({ status: "NEW" });
+  });
+
+  it("persists lead status changes without changing bookings or availability", async () => {
+    const input = directLeadSchema.parse({
+      carId: buildSeed().cars[0]!.id, startAt: "2027-01-10", phone: "+7 999 111-22-33", privacyConsent: true,
+      utm: { utm_source: "yandex" }, landingPath: "/cars/test", referrer: "", idempotencyKey: crypto.randomUUID()
+    });
+    const { lead } = await store.createLead(input);
+    for (const status of ["IN_PROGRESS", "COMPLETED", "DECLINED", "NEW"] as const) {
+      await store.updateLeadStatus(lead.id, status);
+      const reopened = new FileStore(path.join(directory, "db.json"), buildSeed);
+      expect((await reopened.getLeads())[0]?.status).toBe(status);
+    }
+    await expect(store.updateLeadStatus("missing", "IN_PROGRESS")).rejects.toThrow("Лид не найден");
+    expect(await store.getBookings()).toEqual([]);
+    await expect(store.createBooking(bookingInput())).resolves.toMatchObject({ status: "NEW" });
   });
 
   it("stores a new request without birth or driving licence dates", async () => {
@@ -71,6 +117,29 @@ describe("FileStore booking integrity", () => {
       driverAgeAtStart: null,
       drivingExperienceMonths: null,
     });
+  });
+
+  it("persists VK attribution across reopening and duplicate requests", async () => {
+    const input = directLeadSchema.parse({
+      carId: buildSeed().cars[0]!.id, startAt: "2027-02-10", phone: "+7 999 111-22-33", privacyConsent: true,
+      utm: { utm_source: "vk", rb_clickid: "vk-click" }, landingPath: "/cars/test", referrer: "", idempotencyKey: crypto.randomUUID()
+    });
+    const created = await store.createLead(input, "rpmrent.ru");
+    expect(created.lead.source).toBe("vk_ads");
+    expect((await store.createLead(input)).created).toBe(false);
+    expect((await store.getLeads()).find((item) => item.id === created.lead.id)).toMatchObject({ source: "vk_ads", utm: input.utm });
+  });
+
+  it("persists the originating domain for bookings and Direct leads", async () => {
+    const booking = await store.createBooking(bookingInput(), "rpm-rent.ru");
+    const leadInput = directLeadSchema.parse({
+      carId: buildSeed().cars[0]!.id, startAt: "2027-02-10", phone: "+7 999 111-22-33", privacyConsent: true,
+      utm: { utm_source: "yandex" }, landingPath: "/cars/test", referrer: "", idempotencyKey: crypto.randomUUID()
+    });
+    const { lead } = await store.createLead(leadInput, "rpmrent.ru");
+
+    expect(booking.originDomain).toBe("rpm-rent.ru");
+    expect(lead.originDomain).toBe("rpmrent.ru");
   });
 
   it("releases dates after cancellation but not while the request is active", async () => {
@@ -110,6 +179,17 @@ describe("FileStore booking integrity", () => {
     await expect(store.createBooking(bookingInput({ additionalServiceIds: ["missing-service"] }))).rejects.toThrow("услуг");
     const another = (await store.getCars({ includeHidden: true }))[1]!;
     await expect(store.saveCar({ ...another, slug: car.slug })).rejects.toThrow("slug");
+  });
+
+  it("hides legacy internal copy when reading an existing database", async () => {
+    const database = buildSeed();
+    database.cars[0] = { ...database.cars[0]!, shortDescription: "Импортировано из рабочего стандарта RPM.", description: "Импортировано из рабочего стандарта RPM." };
+    store = new FileStore(path.join(directory, "legacy-copy.json"), () => database);
+
+    const car = (await store.getCars({ includeHidden: true }))[0]!;
+
+    expect(car.shortDescription).not.toMatch(/импортировано|рабочего стандарта/i);
+    expect(car.description).not.toMatch(/импортировано|рабочего стандарта/i);
   });
 
   it("protects booking history from car deletion", async () => {

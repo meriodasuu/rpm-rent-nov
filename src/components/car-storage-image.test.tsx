@@ -12,10 +12,9 @@ const car: Car = {
 };
 
 describe("CarCard", () => {
-  it("renders Storage proxy previews without the Next image optimizer", () => {
+  it("renders Storage proxy previews through the Next image optimizer", () => {
     const html = renderToStaticMarkup(<CarCard car={car} />);
 
-    expect(html).toContain('src="/api/media/storage?path=cars%2Fcar-porsche-911%2Ffb424ac1-988c-4fd9-8e52-2a2cbc83cca2.jpg"');
-    expect(html).not.toContain("/_next/image?url=%2Fapi%2Fmedia%2Fstorage");
+    expect(html).toContain("/_next/image?url=%2Fapi%2Fmedia%2Fstorage");
   });
 });

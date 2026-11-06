@@ -21,7 +21,7 @@ fi
 "${compose[@]}" run --rm --no-deps --user root --entrypoint sh app -c 'chown -R nextjs:nodejs /app/media'
 "${compose[@]}" up -d db
 "${compose[@]}" run --rm tools pnpm prisma:deploy
-"${compose[@]}" up -d app caddy
+"${compose[@]}" up -d app telegram caddy
 "${compose[@]}" ps
 
 echo "Application deployment completed"

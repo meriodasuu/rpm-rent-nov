@@ -1,20 +1,23 @@
+import { getPaidTrafficSource } from "@/lib/direct-traffic";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { normalizeImportedPublicCopy } from "@/data/imported-cars";
 import { PrismaClient } from "@/generated/prisma/client";
 import { resolveDatabaseUrl } from "@/lib/database-url";
 import { blockingBookingStatuses } from "@/lib/availability";
 import { assertBookingStatusTransition } from "@/lib/domain/booking-status";
+import { parseLeadStatus } from "@/lib/domain/lead-status";
 import { prepareBooking } from "@/lib/domain/booking";
 import { assertRentalPeriod, normalizeStoredDate, parseDateOnly } from "@/lib/domain/dates";
 import { DomainError } from "@/lib/domain/errors";
 import type { BookingInput, DirectLeadInput } from "@/lib/validation";
-import type { Booking, BookingServiceSnapshot, BookingStatus, Car, Faq, Lead, LeadCreateResult, Location, Service } from "@/types/domain";
+import type { Booking, BookingServiceSnapshot, BookingStatus, Car, Faq, Lead, LeadCreateResult, Location, OriginDomain, Service, TelegramOperator } from "@/types/domain";
 import type { DataStore } from "./store";
 
 declare global {
   var rpmPrisma: PrismaClient | undefined;
 }
 
-const getPrisma = () => {
+export const getPrisma = () => {
   const databaseUrl = resolveDatabaseUrl();
   if (!databaseUrl) throw new Error("DATABASE_URL is required for the PostgreSQL data store");
   if (!globalThis.rpmPrisma) {
@@ -72,8 +75,8 @@ const mapCar = (record: NonNullable<PrismaCarRecord>): Car => ({
   horsepower: record.horsepower,
   driveType: record.driveType,
   seats: record.seats,
-  shortDescription: record.shortDescription,
-  description: record.description,
+  shortDescription: normalizeImportedPublicCopy(record.shortDescription),
+  description: normalizeImportedPublicCopy(record.description),
   pricePerDay: record.pricePerDay,
   oldPrice: record.oldPrice,
   deposit: record.deposit,
@@ -83,8 +86,8 @@ const mapCar = (record: NonNullable<PrismaCarRecord>): Car => ({
   mileageLimit: record.mileageLimit,
   extraMileagePrice: record.extraMileagePrice,
   insurance: record.insurance,
-  features: asStringArray(record.features),
-  rentalConditions: asStringArray(record.rentalConditions),
+  features: asStringArray(record.features).map(normalizeImportedPublicCopy),
+  rentalConditions: asStringArray(record.rentalConditions).map(normalizeImportedPublicCopy),
   available: record.available,
   published: record.published,
   isNew: record.isNew,
@@ -93,7 +96,7 @@ const mapCar = (record: NonNullable<PrismaCarRecord>): Car => ({
   recommendedOrder: record.recommendedOrder,
   images: (record.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map(({ url, alt }) => ({ url, alt })),
   seoTitle: record.seoTitle,
-  seoDescription: record.seoDescription
+  seoDescription: record.seoDescription ? normalizeImportedPublicCopy(record.seoDescription) : record.seoDescription
 });
 
 const mapLocation = (record: {
@@ -248,7 +251,7 @@ export class PrismaStore implements DataStore {
 
   async deleteLocation(id: string) { await getPrisma().location.delete({ where: { id } }); }
 
-  async createBooking(input: BookingInput): Promise<Booking> {
+  async createBooking(input: BookingInput, originDomain: OriginDomain | null = null): Promise<Booking> {
     try {
       const result = await getPrisma().$transaction(async (database) => {
         const existing = await database.booking.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
@@ -291,6 +294,7 @@ export class PrismaStore implements DataStore {
             additionalServicesPrice: prepared.calculation.servicesPrice,
             deposit: prepared.calculation.deposit,
             source: "website_booking",
+            originDomain,
             utm: input.utm,
             referrer: input.referrer || null,
             idempotencyKey: input.idempotencyKey,
@@ -307,6 +311,31 @@ export class PrismaStore implements DataStore {
       }
       if (isExclusionConflict(error)) {
         throw new DomainError("BOOKING_CONFLICT", "Автомобиль уже занят на выбранный период. Выберите другие даты.", 409);
+      }
+      throw error;
+    }
+  }
+
+  async createLead(input: DirectLeadInput, originDomain: OriginDomain | null = null): Promise<LeadCreateResult> {
+    try {
+      const result = await getPrisma().$transaction(async (database) => {
+        const existing = await database.lead.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+        if (existing) return { record: existing, created: false };
+        const car = await database.car.findFirst({ where: { id: input.carId, published: true } });
+        if (!car) throw new DomainError("NOT_FOUND", "Автомобиль недоступен для заявки", 404);
+        const record = await database.lead.create({ data: {
+          carId: car.id, carTitle: car.title, startAt: toDatabaseDate(input.startAt), phone: input.phone,
+          source: getPaidTrafficSource(new URLSearchParams(input.utm)) ?? "yandex_direct", originDomain, utm: input.utm, landingPath: input.landingPath, referrer: input.referrer || null,
+          idempotencyKey: input.idempotencyKey, privacyConsentAt: new Date(), status: "NEW"
+        } });
+        return { record, created: true };
+      }, { isolationLevel: "Serializable" });
+      return { lead: this.mapLead(result.record), created: result.created };
+    } catch (error) {
+      if (error instanceof DomainError) throw error;
+      if (isIdempotencyConflict(error)) {
+        const existing = await getPrisma().lead.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+        if (existing) return { lead: this.mapLead(existing), created: false };
       }
       throw error;
     }
@@ -329,35 +358,11 @@ export class PrismaStore implements DataStore {
     return !conflict;
   }
 
-  async createLead(input: DirectLeadInput): Promise<LeadCreateResult> {
-    try {
-      const result = await getPrisma().$transaction(async (database) => {
-        const existing = await database.lead.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-        if (existing) return { record: existing, created: false };
-        const car = await database.car.findFirst({ where: { id: input.carId, published: true } });
-        if (!car) throw new DomainError("NOT_FOUND", "Автомобиль недоступен для заявки", 404);
-        const record = await database.lead.create({ data: {
-          carId: car.id, carTitle: car.title, startAt: toDatabaseDate(input.startAt), phone: input.phone,
-          source: "yandex_direct", utm: input.utm, landingPath: input.landingPath, referrer: input.referrer || null,
-          idempotencyKey: input.idempotencyKey, privacyConsentAt: new Date(), status: "NEW"
-        } });
-        return { record, created: true };
-      }, { isolationLevel: "Serializable" });
-      return { lead: this.mapLead(result.record), created: result.created };
-    } catch (error) {
-      if (error instanceof DomainError) throw error;
-      if (isIdempotencyConflict(error)) {
-        const existing = await getPrisma().lead.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-        if (existing) return { lead: this.mapLead(existing), created: false };
-      }
-      throw error;
-    }
-  }
-
   private mapBooking(record: Awaited<ReturnType<ReturnType<typeof getPrisma>["booking"]["findFirst"]>>): Booking {
     if (!record) throw new DomainError("NOT_FOUND", "Заявка не найдена", 404);
     return {
       id: record.id,
+      bookingNumber: record.bookingNumber,
       carId: record.carId,
       carTitle: record.carTitle,
       startAt: normalizeStoredDate(record.startAt),
@@ -377,12 +382,14 @@ export class PrismaStore implements DataStore {
       additionalServiceIds: asStringArray(record.additionalServiceIds),
       additionalServicesSnapshot: asServiceSnapshots(record.additionalServicesSnapshot),
       comment: record.comment,
+      managerComment: record.managerComment,
       rentalDays: record.rentalDays,
       pricePerDaySnapshot: record.pricePerDaySnapshot,
       rentalPrice: record.rentalPrice,
       additionalServicesPrice: record.additionalServicesPrice,
       deposit: record.deposit,
       source: record.source,
+      originDomain: record.originDomain as OriginDomain | null,
       utm: asStringRecord(record.utm),
       referrer: record.referrer,
       idempotencyKey: record.idempotencyKey,
@@ -402,12 +409,26 @@ export class PrismaStore implements DataStore {
     return rows.map((row) => this.mapLead(row));
   }
 
-  private mapLead(record: { id: string; carId: string; carTitle: string; startAt: Date; phone: string; utm: unknown; landingPath: string; referrer: string | null; idempotencyKey: string; privacyConsentAt: Date; createdAt: Date }): Lead {
+  private mapLead(record: { source?: string; id: string; carId: string; carTitle: string; startAt: Date; phone: string; managerComment: string | null; originDomain: string | null; utm: unknown; landingPath: string; referrer: string | null; idempotencyKey: string; privacyConsentAt: Date; createdAt: Date; status: string }): Lead {
     return {
       id: record.id, carId: record.carId, carTitle: record.carTitle, startAt: normalizeStoredDate(record.startAt), phone: record.phone,
-      source: "yandex_direct", utm: asStringRecord(record.utm), landingPath: record.landingPath, referrer: record.referrer,
-      idempotencyKey: record.idempotencyKey, privacyConsentAt: record.privacyConsentAt.toISOString(), status: "NEW", createdAt: record.createdAt.toISOString()
+      managerComment: record.managerComment,
+      source: record.source === "vk_ads" ? "vk_ads" : "yandex_direct", originDomain: record.originDomain as OriginDomain | null, utm: asStringRecord(record.utm), landingPath: record.landingPath, referrer: record.referrer,
+      idempotencyKey: record.idempotencyKey, privacyConsentAt: record.privacyConsentAt.toISOString(), status: parseLeadStatus(record.status), createdAt: record.createdAt.toISOString()
     };
+  }
+
+  async updateLeadStatus(id: string, status: import("@/types/domain").LeadStatus) {
+    const result = await getPrisma().lead.updateMany({ where: { id }, data: { status: parseLeadStatus(status) } });
+    if (!result.count) throw new DomainError("NOT_FOUND", "Лид не найден", 404);
+  }
+
+  async updateInquiryComment(kind: "booking" | "lead", id: string, comment: string | null) {
+    const args = { where: { id }, data: { managerComment: comment } };
+    const result = kind === "booking"
+      ? await getPrisma().booking.updateMany(args)
+      : await getPrisma().lead.updateMany(args);
+    if (!result.count) throw new DomainError("NOT_FOUND", "Обращение не найдено", 404);
   }
 
   async updateBookingStatus(id: string, status: BookingStatus) {
@@ -417,5 +438,40 @@ export class PrismaStore implements DataStore {
       assertBookingStatusTransition(booking.status, status);
       await database.booking.update({ where: { id }, data: { status } });
     }, { isolationLevel: "Serializable" });
+  }
+
+  async getTelegramOperators() {
+    const operators = await getPrisma().telegramOperator.findMany({ orderBy: { createdAt: "asc" } });
+    return operators.map((operator) => this.mapTelegramOperator(operator));
+  }
+
+  async getTelegramOperatorByUserId(telegramUserId: string) {
+    const operator = await getPrisma().telegramOperator.findUnique({ where: { telegramUserId } });
+    return operator ? this.mapTelegramOperator(operator) : null;
+  }
+
+  async activateTelegramOperator(input: { telegramUserId: string; username: string; bootstrapAdminUsernames: string[] }) {
+    const username = input.username.toLowerCase();
+    return getPrisma().$transaction(async (database) => {
+      const existingById = await database.telegramOperator.findUnique({ where: { telegramUserId: input.telegramUserId } });
+      if (existingById) return this.mapTelegramOperator(existingById);
+      const existingByUsername = await database.telegramOperator.findUnique({ where: { username } });
+      if (existingByUsername) {
+        if (existingByUsername.telegramUserId) return null;
+        return this.mapTelegramOperator(await database.telegramOperator.update({ where: { id: existingByUsername.id }, data: { telegramUserId: input.telegramUserId } }));
+      }
+      if (!input.bootstrapAdminUsernames.map((item) => item.toLowerCase()).includes(username)) return null;
+      return this.mapTelegramOperator(await database.telegramOperator.create({ data: { username, telegramUserId: input.telegramUserId, role: "ADMIN" } }));
+    }, { isolationLevel: "Serializable" });
+  }
+
+  async inviteTelegramOperator(input: { username: string }) {
+    const username = input.username.toLowerCase();
+    const operator = await getPrisma().telegramOperator.upsert({ where: { username }, create: { username, role: "OPERATOR" }, update: {} });
+    return this.mapTelegramOperator(operator);
+  }
+
+  private mapTelegramOperator(record: { id: string; telegramUserId: string | null; username: string; role: "ADMIN" | "OPERATOR"; createdAt: Date }): TelegramOperator {
+    return { id: record.id, telegramUserId: record.telegramUserId, username: record.username, role: record.role, createdAt: record.createdAt.toISOString() };
   }
 }

@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPolicyPage } from "@/components/legal-policy-page";
 
-export const metadata: Metadata = { title: "Политика конфиденциальности" };
+export const metadata: Metadata = {
+  title: "Политика конфиденциальности",
+  description: "Политика конфиденциальности RPM Rent: какие данные обрабатываются для заявок на аренду автомобиля.",
+  alternates: { canonical: "/privacy" }
+};
 
 export default function PrivacyPage() {
   return <LegalPolicyPage title="Политика конфиденциальности" intro="Как RPM Rent защищает информацию посетителей сайта и клиентов." sections={[

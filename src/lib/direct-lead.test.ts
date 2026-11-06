@@ -3,7 +3,7 @@ import { directLeadSchema } from "./validation";
 
 const validLead = {
   carId: "tesla-model-3",
-  startAt: "2026-09-01",
+  startAt: "2027-09-01",
   phone: "+7 999 123-45-67",
   privacyConsent: true,
   utm: { utm_source: "yandex", yclid: "123" },
@@ -13,6 +13,10 @@ const validLead = {
 };
 
 describe("directLeadSchema", () => {
+  it("accepts VK leads and preserves the click ID", () => {
+    const utm = { utm_source: "vk", rb_clickid: "vk-click-1" };
+    expect(directLeadSchema.parse({ ...validLead, utm }).utm).toEqual(utm);
+  });
   it("accepts the minimal Direct lead without booking-only fields", () => {
     expect(directLeadSchema.safeParse(validLead).success).toBe(true);
   });

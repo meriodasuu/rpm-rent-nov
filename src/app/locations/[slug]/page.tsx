@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { LocationGallery } from "@/components/location-gallery";
 import { getStore } from "@/lib/data";
+import { socialPreviewImage } from "@/config/social-preview";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -12,11 +13,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const location = await (await getStore()).getLocationBySlug(slug);
   if (!location) return { title: "Локация не найдена" };
+  const title = (location.seoTitle ?? location.title)
+    .replace(/\s*(?:\||[—–-])\s*RPM Rent\s*$/i, "")
+    .trim() || location.title;
   return {
-    title: location.seoTitle || `${location.title} | RPM Rent`,
+    title,
     description: location.seoDescription || location.description,
     alternates: { canonical: `/locations/${location.slug}` },
-    openGraph: { images: location.images[0] ? [{ url: location.images[0], alt: location.title }] : [] }
+    openGraph: { images: [socialPreviewImage] }
   };
 }
 

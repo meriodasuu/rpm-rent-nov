@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { isStorageMediaUrl } from "@/lib/admin-media";
 import { isYandexMediaUrl } from "@/lib/yandex-public-media";
 import type { Car } from "@/types/domain";
 
@@ -17,7 +16,7 @@ export function CarShowcase({ cars }: { cars: Car[] }) {
           return (
             <article className={`showcase-card ${index === 0 ? "showcase-card-featured" : ""}`} key={car.id}>
               <Link href={`/cars/${car.slug}`} aria-label={`Открыть ${car.title}`}>
-                {image ? <Image alt={image.alt} fill loading={index < 2 ? "eager" : "lazy"} sizes={index === 0 ? "(max-width:760px) 92vw, 58vw" : "(max-width:760px) 92vw, 31vw"} src={image.url} unoptimized={isYandexMediaUrl(image.url) || isStorageMediaUrl(image.url)} /> : <span className="showcase-image-missing">Фото готовится</span>}
+                {image ? <Image alt={image.alt} fill loading={index < 2 ? "eager" : "lazy"} sizes={index === 0 ? "(max-width:760px) 92vw, 58vw" : "(max-width:760px) 92vw, 31vw"} src={image.url} unoptimized={isYandexMediaUrl(image.url)} /> : <span className="showcase-image-missing">Фото готовится</span>}
                 <span className="showcase-gradient" />
                 <span className="showcase-meta">
                   <span className="showcase-index">{String(index + 1).padStart(2, "0")}</span>

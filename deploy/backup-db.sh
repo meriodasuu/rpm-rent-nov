@@ -14,7 +14,7 @@ docker compose --env-file .env.production -f compose.production.yml exec -T db \
   > "${backup_dir}/rpm-rent-${timestamp}.dump"
 
 media_backup="${project_dir}/backups/rpm-rent-media-latest.tar.gz"
-docker compose --env-file .env.production -f compose.production.yml run --rm --no-deps tools \
+docker compose --env-file .env.production -f compose.production.yml run --rm --no-deps --quiet-build tools \
   tar --ignore-failed-read --warning=no-file-changed -C /app/media -czf - . > "${media_backup}.tmp"
 gzip -t "${media_backup}.tmp"
 mv "${media_backup}.tmp" "${media_backup}"

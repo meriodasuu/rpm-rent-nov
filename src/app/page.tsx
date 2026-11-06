@@ -19,7 +19,6 @@ import Link from "next/link";
 import { CarShowcase } from "@/components/car-showcase";
 import { FaqList } from "@/components/faq-list";
 import { MyReviewsWidget } from "@/components/myreviews-widget";
-import { isStorageMediaUrl } from "@/lib/admin-media";
 import { getStore } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -66,8 +65,8 @@ export default async function HomePage() {
           <div className="hero-grid" />
           <div className="hero-shade" />
           <div className="hero-copy">
-            <h1 className="display">Премиальные<br />автомобили<br />для вашего<br />маршрута<span className="accent-dot">.</span></h1>
-            <p className="subtitle">Арендуй авто для города, встреч, свиданий<br className="desktop-only" /> и ярких выходных в Санкт-Петербурге.</p>
+            <h1 className="display">Аренда премиальных<br />автомобилей<br />в Санкт-Петербурге<span className="accent-dot">.</span></h1>
+            <p className="subtitle">Выберите автомобиль для города, встречи, свидания<br className="desktop-only" /> или яркого выходного в Санкт-Петербурге.</p>
             <div className="button-row"><Link className="button red" href="/cars">Выбрать автомобиль <ArrowRight size={18} /></Link></div>
           </div>
         </div>
@@ -103,7 +102,7 @@ export default async function HomePage() {
         <div className="container">
           <div className="section-head"><h2 className="title">Локации</h2><p className="section-lead">Выберите настроение поездки и перейдите к подходящей подборке.</p></div>
           <div className="locations-grid">
-            {locations.map((location, index) => <Link className="location-card" href={`/locations/${location.slug}`} key={location.id}><Image alt={location.title} fill sizes="(max-width:760px) 88vw, 42vw" src={location.images[0]!} unoptimized={isYandexMediaUrl(location.images[0]!) || isStorageMediaUrl(location.images[0]!)} /><span className="location-shade" /><span className="location-index">{String(index + 1).padStart(2, "0")}</span><span className="location-copy"><small>{location.subtitle}</small><strong>{location.title}</strong></span><ArrowRight size={20} /></Link>)}
+            {locations.map((location, index) => <Link className="location-card" href={`/locations/${location.slug}`} key={location.id}><Image alt={location.title} fill sizes="(max-width:760px) 88vw, 42vw" src={location.images[0]!} unoptimized={isYandexMediaUrl(location.images[0]!)} /><span className="location-shade" /><span className="location-index">{String(index + 1).padStart(2, "0")}</span><span className="location-copy"><small>{location.subtitle}</small><strong>{location.title}</strong></span><ArrowRight size={20} /></Link>)}
           </div>
         </div>
       </section>

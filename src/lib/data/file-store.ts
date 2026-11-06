@@ -1,26 +1,38 @@
+import { getPaidTrafficSource } from "@/lib/direct-traffic";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createSeedDatabase } from "@/data/seed";
+import { normalizeImportedPublicCopy } from "@/data/imported-cars";
 import { hasBookingConflict } from "@/lib/availability";
 import { assertBookingStatusTransition } from "@/lib/domain/booking-status";
+import { parseLeadStatus } from "@/lib/domain/lead-status";
 import { prepareBooking } from "@/lib/domain/booking";
 import { assertRentalPeriod, normalizeStoredDate } from "@/lib/domain/dates";
 import { DomainError } from "@/lib/domain/errors";
 import type { BookingInput, DirectLeadInput } from "@/lib/validation";
-import type { Booking, BookingStatus, Car, DevDatabase, Faq, Lead, LeadCreateResult, Location, Service } from "@/types/domain";
+import type { Booking, BookingStatus, Car, DevDatabase, Faq, Lead, LeadCreateResult, Location, OriginDomain, Service, TelegramOperator } from "@/types/domain";
 import type { DataStore } from "./store";
 
 const configuredDbPath = process.env.FILE_DATABASE_PATH?.trim();
 const defaultDbPath = configuredDbPath ? path.resolve(configuredDbPath) : path.join(process.cwd(), ".data", "db.json");
 
 const normalizeCar = (car: Car): Car => {
-  const normalized = { ...car, minimumRentalDays: car.minimumRentalDays ?? null };
+  const normalized = {
+    ...car,
+    minimumRentalDays: car.minimumRentalDays ?? null,
+    shortDescription: normalizeImportedPublicCopy(car.shortDescription),
+    description: normalizeImportedPublicCopy(car.description),
+    seoDescription: car.seoDescription ? normalizeImportedPublicCopy(car.seoDescription) : car.seoDescription,
+    features: car.features.map(normalizeImportedPublicCopy),
+    rentalConditions: car.rentalConditions.map(normalizeImportedPublicCopy),
+  };
   const policyComplete = normalized.minimumAge !== null && normalized.minimumDrivingExperience !== null && normalized.minimumRentalDays !== null;
   return { ...normalized, available: normalized.available && (!normalized.published || policyComplete) };
 };
 
 const normalizeBooking = (booking: Booking): Booking => ({
   ...booking,
+  originDomain: booking.originDomain ?? null,
   startAt: normalizeStoredDate(booking.startAt),
   endAt: normalizeStoredDate(booking.endAt),
   birthDate: booking.birthDate ? normalizeStoredDate(booking.birthDate) : null,
@@ -34,12 +46,32 @@ const normalizeBooking = (booking: Booking): Booking => ({
   privacyConsentAt: booking.privacyConsentAt ?? null
 });
 
+const normalizeBookings = (bookings: Booking[]): Booking[] => {
+  const assigned = new Map<string, number>();
+  const occupied = new Set<number>();
+  for (const booking of bookings) {
+    if (Number.isSafeInteger(booking.bookingNumber) && booking.bookingNumber > 0 && !occupied.has(booking.bookingNumber)) {
+      assigned.set(booking.id, booking.bookingNumber);
+      occupied.add(booking.bookingNumber);
+    }
+  }
+  let next = 1;
+  for (const booking of [...bookings].sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))) {
+    if (assigned.has(booking.id)) continue;
+    while (occupied.has(next)) next += 1;
+    assigned.set(booking.id, next);
+    occupied.add(next);
+  }
+  return bookings.map((booking) => normalizeBooking({ ...booking, bookingNumber: assigned.get(booking.id)! }));
+};
+
 const normalizeDatabase = (database: DevDatabase): DevDatabase => ({
   ...database,
   cars: database.cars.map(normalizeCar),
-  bookings: database.bookings.map(normalizeBooking),
-  leads: database.leads ?? [],
-  locations: database.locations ?? []
+  bookings: normalizeBookings(database.bookings),
+  leads: (database.leads ?? []).map((lead) => ({ ...lead, originDomain: lead.originDomain ?? null })),
+  locations: database.locations ?? [],
+  telegramOperators: database.telegramOperators ?? []
 });
 
 export class FileStore implements DataStore {
@@ -189,7 +221,7 @@ export class FileStore implements DataStore {
     return !hasBookingConflict(database.bookings, carId, startDate, endDate);
   }
 
-  async createBooking(input: BookingInput): Promise<Booking> {
+  async createBooking(input: BookingInput, originDomain: OriginDomain | null = null): Promise<Booking> {
     return this.mutate((database) => {
       const existing = database.bookings.find((item) => item.idempotencyKey === input.idempotencyKey);
       if (existing) return existing;
@@ -201,6 +233,7 @@ export class FileStore implements DataStore {
       }
       const booking: Booking = {
         id: crypto.randomUUID(),
+        bookingNumber: Math.max(0, ...database.bookings.map((item) => item.bookingNumber)) + 1,
         carId: car.id,
         carTitle: car.title,
         startAt: input.startAt,
@@ -226,6 +259,7 @@ export class FileStore implements DataStore {
         additionalServicesPrice: prepared.calculation.servicesPrice,
         deposit: prepared.calculation.deposit,
         source: "website_booking",
+        originDomain,
         utm: input.utm,
         referrer: input.referrer || null,
         idempotencyKey: input.idempotencyKey,
@@ -242,7 +276,7 @@ export class FileStore implements DataStore {
     return (await this.readDatabase()).bookings.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  async createLead(input: DirectLeadInput): Promise<LeadCreateResult> {
+  async createLead(input: DirectLeadInput, originDomain: OriginDomain | null = null): Promise<LeadCreateResult> {
     return this.mutate((database) => {
       const existing = database.leads.find((item) => item.idempotencyKey === input.idempotencyKey);
       if (existing) return { lead: existing, created: false };
@@ -250,7 +284,7 @@ export class FileStore implements DataStore {
       if (!car) throw new DomainError("NOT_FOUND", "Автомобиль недоступен для заявки", 404);
       const lead: Lead = {
         id: crypto.randomUUID(), carId: car.id, carTitle: car.title, startAt: input.startAt, phone: input.phone,
-        source: "yandex_direct", utm: input.utm, landingPath: input.landingPath, referrer: input.referrer || null,
+        source: getPaidTrafficSource(new URLSearchParams(input.utm)) ?? "yandex_direct", originDomain, utm: input.utm, landingPath: input.landingPath, referrer: input.referrer || null,
         idempotencyKey: input.idempotencyKey, privacyConsentAt: new Date().toISOString(), status: "NEW", createdAt: new Date().toISOString()
       };
       database.leads.unshift(lead);
@@ -268,6 +302,60 @@ export class FileStore implements DataStore {
       if (!booking) throw new DomainError("NOT_FOUND", "Заявка не найдена", 404);
       assertBookingStatusTransition(booking.status, status);
       booking.status = status;
+    });
+  }
+
+  async updateInquiryComment(kind: "booking" | "lead", id: string, comment: string | null) {
+    await this.mutate((database) => {
+      const inquiry = (kind === "booking" ? database.bookings : database.leads).find((item) => item.id === id);
+      if (!inquiry) throw new DomainError("NOT_FOUND", "Обращение не найдено", 404);
+      inquiry.managerComment = comment;
+    });
+  }
+
+  async updateLeadStatus(id: string, status: import("@/types/domain").LeadStatus) {
+    const validated = parseLeadStatus(status);
+    await this.mutate((database) => {
+      const lead = database.leads.find((item) => item.id === id);
+      if (!lead) throw new DomainError("NOT_FOUND", "Лид не найден", 404);
+      lead.status = validated;
+    });
+  }
+
+  async getTelegramOperators() {
+    return (await this.readDatabase()).telegramOperators;
+  }
+
+  async getTelegramOperatorByUserId(telegramUserId: string) {
+    return (await this.readDatabase()).telegramOperators.find((operator) => operator.telegramUserId === telegramUserId) ?? null;
+  }
+
+  async activateTelegramOperator(input: { telegramUserId: string; username: string; bootstrapAdminUsernames: string[] }) {
+    return this.mutate((database) => {
+      const existingById = database.telegramOperators.find((operator) => operator.telegramUserId === input.telegramUserId);
+      if (existingById) return existingById;
+      const username = input.username.toLowerCase();
+      const existingByUsername = database.telegramOperators.find((operator) => operator.username === username);
+      if (existingByUsername) {
+        if (existingByUsername.telegramUserId) return null;
+        existingByUsername.telegramUserId = input.telegramUserId;
+        return existingByUsername;
+      }
+      if (!input.bootstrapAdminUsernames.map((item) => item.toLowerCase()).includes(username)) return null;
+      const operator: TelegramOperator = { id: crypto.randomUUID(), telegramUserId: input.telegramUserId, username, role: "ADMIN", createdAt: new Date().toISOString() };
+      database.telegramOperators.push(operator);
+      return operator;
+    });
+  }
+
+  async inviteTelegramOperator(input: { username: string }) {
+    return this.mutate((database) => {
+      const username = input.username.toLowerCase();
+      const existing = database.telegramOperators.find((operator) => operator.username === username);
+      if (existing) return existing;
+      const operator: TelegramOperator = { id: crypto.randomUUID(), telegramUserId: null, username, role: "OPERATOR", createdAt: new Date().toISOString() };
+      database.telegramOperators.push(operator);
+      return operator;
     });
   }
 }

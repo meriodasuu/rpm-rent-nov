@@ -7,6 +7,8 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { SiteChrome } from "@/components/site-chrome";
 import { ThemeInitScript } from "@/components/theme-init-script";
+import { socialPreviewImage } from "@/config/social-preview";
+import { siteUrl, serializeJsonLd } from "@/lib/seo";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -14,8 +16,6 @@ const manrope = Manrope({
   variable: "--font-manrope",
   display: "swap"
 });
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -27,27 +27,28 @@ export const metadata: Metadata = {
     siteName: "RPM Rent",
     title: "RPM Rent | аренда автомобилей в Санкт-Петербурге",
     description: "Сравните автомобили, проверьте даты и отправьте обращение менеджеру.",
-    images: [{ url: "/images/cars/porsche-911-carrera-4s/01.jpg", width: 1200, height: 900, alt: "Porsche 911 из автопарка RPM Rent" }]
+    images: [socialPreviewImage]
   },
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", images: [socialPreviewImage] },
   alternates: { canonical: "/" }
 };
 
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "AutoRental",
+  "@id": `${siteUrl}/#organization`,
   name: "RPM Rent",
   url: siteUrl,
   telephone: "+7 993 983-80-80",
   email: "rpmrent78@gmail.com",
-  address: { "@type": "PostalAddress", addressLocality: "Санкт-Петербург", streetAddress: "проспект Маршала Блюхера, 12к7" },
+  address: { "@type": "PostalAddress", addressCountry: "RU", addressLocality: "Санкт-Петербург", streetAddress: "Пискаревский проспект, 144АК, 2 этаж" },
   areaServed: "Санкт-Петербург"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru" data-scroll-behavior="smooth" className={manrope.variable} suppressHydrationWarning>
-      <head><ThemeInitScript /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} /></head>
+      <head><ThemeInitScript /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }} /></head>
       <body>
         <SiteChrome header={<Header />} footer={<Footer />}>{children}</SiteChrome>
         <Analytics />

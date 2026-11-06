@@ -1,0 +1,112 @@
+#cloud-config
+
+hostname: rpm-rent
+timezone: Europe/Moscow
+
+package_update: true
+package_upgrade: true
+
+users:
+  - name: deploy
+    gecos: RPM Rent deploy user
+    shell: /bin/bash
+    groups:
+      - sudo
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG9JfdJsqPn0Hf+Mv6LddweWbefyLdkdWhXECAKrLmG1 rpm-rent-timeweb
+
+disable_root: true
+ssh_pwauth: false
+
+packages:
+  - ca-certificates
+  - curl
+  - fail2ban
+  - git
+  - gnupg
+  - jq
+  - ufw
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-rpm-rent.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      X11Forwarding no
+      AllowUsers deploy
+
+  - path: /etc/fail2ban/jail.d/sshd.local
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [sshd]
+      enabled = true
+      port = ssh
+      maxretry = 5
+      findtime = 10m
+      bantime = 1h
+
+  - path: /etc/docker/daemon.json
+    owner: root:root
+    permissions: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+
+  - path: /etc/sysctl.d/99-rpm-rent.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      vm.swappiness=10
+
+runcmd:
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+      . /etc/os-release
+      architecture="$(dpkg --print-architecture)"
+      cat > /etc/apt/sources.list.d/docker.sources <<'EOF'
+      Types: deb
+      URIs: https://download.docker.com/linux/ubuntu
+      Suites: __VERSION_CODENAME__
+      Components: stable
+      Architectures: __ARCHITECTURE__
+      Signed-By: /etc/apt/keyrings/docker.asc
+      EOF
+      sed -i "s/__VERSION_CODENAME__/${VERSION_CODENAME}/;s/__ARCHITECTURE__/${architecture}/" /etc/apt/sources.list.d/docker.sources
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  - usermod -aG docker deploy
+  - install -d -m 0750 -o deploy -g deploy /opt/rpm-rent
+  - |
+      if ! swapon --show=NAME --noheadings | grep -q '^/swapfile$'; then
+        fallocate -l 2G /swapfile
+        chmod 0600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+      fi
+  - sysctl --system
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+  - systemctl enable --now fail2ban
+  - systemctl restart docker
+  - systemctl reload ssh
+
+final_message: "RPM Rent server bootstrap completed in $UPTIME seconds"

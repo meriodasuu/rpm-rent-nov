@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Оформление аренды автомобиля",
   description: "Выберите автомобиль и даты, посмотрите предварительный расчёт и отправьте обращение менеджеру RPM Rent.",
   alternates: { canonical: "/booking" },
+  robots: { index: false, follow: true },
 };
 
 export default async function BookingPage({ searchParams }: { searchParams: Promise<{ car?: string; start?: string; end?: string; service?: string }> }) {

@@ -211,7 +211,7 @@ const importedCarRecords: Car[] = [
         "alt": "BMW X5 — фото 8"
       }
     ],
-    "seoTitle": "BMW X5 в аренду — RPM Rent",
+    "seoTitle": "BMW X5 2022 в аренду в Санкт-Петербурге",
     "seoDescription": "BMW X5, 2022 год. Характеристики и тарифы импортированы из рабочего стандарта RPM."
   },
   {
@@ -382,7 +382,7 @@ const importedCarRecords: Car[] = [
         "alt": "BMW X5 — фото 5"
       }
     ],
-    "seoTitle": "BMW X5 в аренду — RPM Rent",
+    "seoTitle": "BMW X5 2020 в аренду в Санкт-Петербурге",
     "seoDescription": "BMW X5, 2020 год. Характеристики и тарифы импортированы из рабочего стандарта RPM."
   },
   {
@@ -508,7 +508,7 @@ const importedCarRecords: Car[] = [
         "alt": "BMW 320d — фото 5"
       }
     ],
-    "seoTitle": "BMW 320d в аренду — RPM Rent",
+    "seoTitle": "BMW 320d 2021 в аренду в Санкт-Петербурге",
     "seoDescription": "BMW 320d, 2021 год. Характеристики и тарифы импортированы из рабочего стандарта RPM."
   },
   {
@@ -699,7 +699,7 @@ const importedCarRecords: Car[] = [
         "alt": "BMW 320d — фото 5"
       }
     ],
-    "seoTitle": "BMW 320d в аренду — RPM Rent",
+    "seoTitle": "BMW 320d 2016 в аренду в Санкт-Петербурге",
     "seoDescription": "BMW 320d, 2016 год. Характеристики и тарифы импортированы из рабочего стандарта RPM."
   },
   {
@@ -2409,8 +2409,24 @@ const importedCarRecords: Car[] = [
   }
 ];
 
+export const normalizeImportedPublicCopy = (value: string) => value
+  .replace(/Характеристики и тарифы импортированы из рабочего стандарта RPM\./g, "Технические характеристики и условия аренды для этой модели.")
+  .replace(/Импортировано из рабочего стандарта RPM\./g, "Технические характеристики и условия аренды для этой модели.")
+  .replace(/Тариф на 12 часов не указан/g, "Тариф на 12 часов уточняется у менеджера")
+  .replace(/Тариф на 3–7 суток не указан/g, "Тариф на 3–7 суток уточняется у менеджера")
+  .replace("Сompetition", "Competition")
+  .replace("Разгон: дo 100 км/ч зaнимaет окoлo", "Разгон: до 100 км/ч занимает около")
+  .replace("Sроrt Сhrоnо", "Sport Chrono")
+  .replace("ceкунды", "секунды")
+  .replace("Поколение: Поколение: I (2013—2026", "Поколение: I (2013—2026");
+
 export const importedCars: Car[] = importedCarRecords.map((car) => ({
   ...car,
   category: vehicleClassForCar(car.slug),
   vehicleClass: vehicleClassForCar(car.slug),
+  shortDescription: normalizeImportedPublicCopy(car.shortDescription),
+  description: normalizeImportedPublicCopy(car.description),
+  seoDescription: car.seoDescription ? normalizeImportedPublicCopy(car.seoDescription) : car.seoDescription,
+  features: car.features.map(normalizeImportedPublicCopy),
+  rentalConditions: car.rentalConditions.map(normalizeImportedPublicCopy),
 }));

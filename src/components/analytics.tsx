@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import Script from "next/script";
+import { VkPixel } from "./vk-pixel";
 
 const consentKey = "rpm-cookie-consent";
 type Consent = "accepted" | "declined" | null;
@@ -28,11 +29,12 @@ export function Analytics() {
 
   return (
     <>
+      {consent === "accepted" ? <VkPixel /> : null}
       {id && consent === "accepted" ? <Script id="yandex-metrika" strategy="afterInteractive">
         {`(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym(${id},"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true});`}
       </Script> : null}
       {consent === null ? <aside className="cookie-consent" aria-label="Настройки cookie">
-        <div><strong>Настройки конфиденциальности</strong><p>Сайт использует обязательные технические данные. Аналитику Яндекс Метрики включим только с вашего согласия.</p></div>
+        <div><strong>Настройки конфиденциальности</strong><p>Сайт использует обязательные технические данные. Яндекс Метрику и пиксель VK Рекламы включим только с вашего согласия.</p></div>
         <div className="cookie-consent-actions"><button className="button ghost" type="button" onClick={() => choose("declined")}>Только необходимые</button><button className="button red" type="button" onClick={() => choose("accepted")}>Разрешить аналитику</button><a className="text-link" href="/cookies">Подробнее</a></div>
       </aside> : null}
     </>
