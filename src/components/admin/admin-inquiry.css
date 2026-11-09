@@ -1,0 +1,13 @@
+.admin-bookings-page .admin-booking-toolbar { flex-wrap: wrap; }
+.admin-bookings-page .admin-booking-tabs { flex: 1 1 100%; min-width: 0; }
+.admin-bookings-page .admin-booking-toolbar > select { min-height: 40px; padding: 0 12px; border: 1px solid #dededb; border-radius: 6px; background: #fff; color: #171719; font: inherit; font-size: 12px; }
+.admin-bookings-page .admin-booking-search { flex: 1; }
+.admin-inquiry-comment textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 100px; padding: 12px; border: 1px solid #dededb; border-radius: 6px; background: #fff; color: #171719; font: inherit; }
+.admin-inquiry-comment-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.admin-bookings-page .admin-booking-note p { white-space: pre-wrap; }
+.admin-bookings-page .status-badge { display: inline-block; padding: 4px 8px; border-radius: 6px; background: #eee; color: #171719; font-size: 11px; white-space: nowrap; }
+.admin-bookings-page .admin-booking-detail dd, .admin-bookings-page .admin-booking-note p { overflow-wrap: anywhere; }
+@media (max-width: 800px) {
+  .admin-bookings-page .admin-booking-toolbar { flex-wrap: nowrap; }
+  .admin-bookings-page .admin-booking-tabs { flex: none; width: 100%; }
+}

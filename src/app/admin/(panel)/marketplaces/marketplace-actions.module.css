@@ -1,0 +1,19 @@
+.actionForm { display: grid; gap: 8px; justify-items: end; }
+.feedback { margin: 0; max-width: 440px; font-size: 13px; }
+.feedbackError { color: #a12d22; }
+.feedbackSuccess { color: #17663a; }
+.workflow { display: grid; gap: 9px; min-width: 280px; }
+.inlineForm { display: flex; align-items: end; gap: 8px; }
+.inlineForm label { flex: 1; }
+.inlineForm label span { display: block; margin-bottom: 5px; color: #66707a; font-size: 11px; font-weight: 700; }
+.inlineForm input { width: 100%; min-width: 190px; border: 1px solid #cfd5db; border-radius: 9px; padding: 9px 10px; }
+.inlineForm button, .previewCard button, .unlinkForm button { border: 1px solid #b8c0c8; border-radius: 9px; padding: 9px 12px; background: white; cursor: pointer; }
+.inlineForm button:disabled, .previewCard button:disabled, .unlinkForm button:disabled { cursor: wait; opacity: .55; }
+.previewCard { display: grid; grid-template-columns: minmax(150px, 1fr) auto auto auto; align-items: center; gap: 12px; border: 1px solid #d5dce2; border-radius: 12px; padding: 12px; background: #f8fafb; }
+.previewCard small, .previewCard strong { display: block; }
+.previewCard small { margin-bottom: 3px; color: #6b747d; }
+.unlinkForm { display: grid; gap: 6px; justify-items: start; }
+
+@media (max-width: 700px) {
+  .inlineForm, .previewCard { display: grid; grid-template-columns: 1fr; }
+}

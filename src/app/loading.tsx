@@ -1,0 +1,1 @@
+export default function Loading() { return <div className="page"><div className="container"><div className="surface" style={{ minHeight: 420, background: "linear-gradient(100deg,#eee 20%,#f8f8f7 40%,#eee 60%)", backgroundSize: "200% 100%", animation: "pulse 1.4s infinite" }} /></div></div>; }

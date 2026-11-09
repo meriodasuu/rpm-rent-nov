@@ -1,0 +1,47 @@
+{
+  "name": "rpm-rent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && (prisma migrate deploy || echo Prisma migrations skipped) && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "seed": "tsx scripts/seed.ts",
+    "seed:postgres": "tsx scripts/seed-postgres.ts",
+    "import:file-db": "tsx scripts/import-file-db.ts",
+    "auth:hash": "tsx scripts/hash-password.ts",
+    "env:check": "tsx scripts/env-check.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1",
+    "lucide-react": "0.544.0",
+    "next": "16.3.0",
+    "pg": "8.16.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "@types/pg": "8.15.5",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "eslint": "9.35.0",
+    "eslint-config-next": "16.3.0",
+    "prisma": "7.9.1",
+    "tsx": "4.20.5",
+    "typescript": "6.0.3",
+    "vitest": "3.2.4"
+  },
+  "packageManager": "pnpm@11.5.1+sha512.93f7b57422ea7068257235b4c16eb60762eb68e1dc23723199cc739043ea9be2c4143274a399d8c6defa2b1176226d9ca1c4b63482d6200c1a8fbaa78c1d1485"
+}

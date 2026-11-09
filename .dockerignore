@@ -1,0 +1,16 @@
+.git
+.github
+.next
+.data
+.env
+.env.*
+!.env.example
+node_modules
+output
+artifacts
+backups
+docs
+*.md
+*.docx
+*.log
+*.err

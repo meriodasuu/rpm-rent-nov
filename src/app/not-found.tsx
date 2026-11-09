@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function NotFound() { return <div className="page"><div className="narrow surface empty-state"><p className="eyebrow">404</p><h1 className="title">Страница не найдена</h1><p className="subtitle" style={{ marginInline: "auto" }}>Возможно, автомобиль был скрыт или адрес изменился.</p><div className="button-row" style={{ justifyContent: "center", marginTop: 25 }}><Link className="button" href="/cars">В каталог</Link><Link className="button ghost" href="/">На главную</Link></div></div></div>; }

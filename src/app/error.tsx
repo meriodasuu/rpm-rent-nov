@@ -1,0 +1,2 @@
+"use client";
+export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) { return <div className="page"><div className="narrow surface empty-state"><p className="eyebrow">Ошибка</p><h1>Не удалось загрузить страницу</h1><p className="muted">Попробуйте ещё раз. Технические детали не показываются пользователю.</p><button className="button" type="button" onClick={reset}>Повторить</button></div></div>; }

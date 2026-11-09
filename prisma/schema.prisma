@@ -1,0 +1,323 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BookingStatus {
+  NEW
+  IN_PROGRESS
+  CONFIRMED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+enum TelegramOperatorRole {
+  ADMIN
+  OPERATOR
+}
+
+enum MarketplaceSyncStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+enum MarketplaceDiscrepancyStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+enum MarketplaceSeverity {
+  CRITICAL
+  ERROR
+  WARNING
+  INFO
+}
+
+model Car {
+  id                       String     @id @default(cuid())
+  slug                     String     @unique
+  brand                    String
+  model                    String
+  title                    String
+  category                 String
+  bodyType                 String
+  vehicleClass             String
+  year                     Int?
+  transmission             String?
+  engine                   String?
+  horsepower               Int?
+  driveType                String?
+  seats                    Int?
+  shortDescription         String
+  description              String
+  pricePerDay              Int
+  oldPrice                 Int?
+  deposit                  Int
+  minimumAge               Int?
+  minimumDrivingExperience Int?
+  minimumRentalDays        Int?
+  mileageLimit             Int?
+  extraMileagePrice        Int?
+  insurance                String?
+  features                 Json
+  rentalConditions         Json
+  available                Boolean    @default(true)
+  published                Boolean    @default(false)
+  isNew                    Boolean    @default(false)
+  isPromotion              Boolean    @default(false)
+  isDemo                    Boolean    @default(true)
+  recommendedOrder         Int        @default(0)
+  seoTitle                 String?
+  seoDescription           String?
+  images                    CarImage[]
+  bookings                 Booking[]
+  leads                    Lead[]
+  marketplaceListings      MarketplaceListing[]
+  marketplaceAuditLogs     MarketplaceAuditLog[]
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
+}
+
+model CarImage {
+  id        String @id @default(cuid())
+  carId     String
+  car       Car    @relation(fields: [carId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String
+  sortOrder Int    @default(0)
+
+  @@index([carId, sortOrder])
+}
+
+model Booking {
+  id                        String        @id @default(cuid())
+  bookingNumber             Int           @unique @default(autoincrement())
+  carId                     String
+  car                       Car           @relation(fields: [carId], references: [id], onDelete: Restrict)
+  carTitle                  String
+  startAt                   DateTime      @db.Date
+  endAt                     DateTime      @db.Date
+  pickupMethod              String
+  deliveryAddress           String?
+  customerName              String
+  phone                     String
+  telegram                  String?
+  birthDate                 DateTime?     @db.Date
+  licenseIssuedOn           DateTime?     @db.Date
+  driverAgeAtStart          Int?
+  drivingExperienceMonths   Int?
+  minimumAgeApplied         Int?
+  minimumExperienceApplied  Int?
+  minimumRentalDaysApplied  Int?
+  additionalServiceIds      Json
+  additionalServicesSnapshot Json        @default("[]")
+  comment                   String?
+  managerComment            String?
+  rentalDays                Int
+  pricePerDaySnapshot       Int
+  rentalPrice               Int
+  additionalServicesPrice   Int
+  deposit                   Int
+  source                    String
+  originDomain              String?
+  utm                       Json?
+  referrer                  String?
+  idempotencyKey            String        @unique
+  privacyConsentAt          DateTime?
+  integrityProtected        Boolean       @default(true)
+  status                    BookingStatus @default(NEW)
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  @@index([carId, startAt, endAt])
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String
+  price       Int?
+  published   Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  category  String   @default("general")
+  published Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Location {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  title          String
+  subtitle       String
+  description    String
+  address        String?
+  mapUrl         String?
+  directions     String?
+  workingHours   String?
+  image          String
+  images         Json     @default("[]")
+  published      Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Lead {
+  id                 String   @id @default(cuid())
+  carId              String
+  car                Car      @relation(fields: [carId], references: [id], onDelete: Restrict)
+  carTitle           String
+  startAt            DateTime @db.Date
+  phone              String
+  managerComment     String?
+  source             String   @default("yandex_direct")
+  originDomain       String?
+  utm                Json     @default("{}")
+  landingPath        String
+  referrer           String?
+  idempotencyKey     String   @unique
+  privacyConsentAt   DateTime
+  status             String   @default("NEW")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([carId, createdAt])
+}
+
+model TelegramOperator {
+  id             String               @id @default(cuid())
+  telegramUserId String?              @unique
+  username       String               @unique
+  role           TelegramOperatorRole
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+}
+
+model Marketplace {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  listings  MarketplaceListing[]
+  syncRuns  MarketplaceSyncRun[]
+  auditLogs MarketplaceAuditLog[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MarketplaceListing {
+  id               String   @id @default(cuid())
+  carId            String
+  car              Car      @relation(fields: [carId], references: [id], onDelete: Restrict)
+  marketplaceId    String
+  marketplace      Marketplace @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+  externalId       String
+  externalUrl      String?
+  status           String   @default("LINKED")
+  lastCheckedAt    DateTime?
+  lastErrorCode    String?
+  lastErrorMessage String?
+  snapshots        MarketplaceSnapshot[]
+  discrepancies    MarketplaceDiscrepancy[]
+  auditLogs        MarketplaceAuditLog[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([marketplaceId, externalId])
+  @@index([carId, marketplaceId, status])
+}
+
+model MarketplaceSyncRun {
+  id               String   @id @default(cuid())
+  marketplaceId    String
+  marketplace      Marketplace @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+  status           MarketplaceSyncStatus @default(RUNNING)
+  startedAt        DateTime @default(now())
+  finishedAt       DateTime?
+  checkedListings  Int      @default(0)
+  discrepancyCount Int      @default(0)
+  errorCode        String?
+  errorMessage     String?
+  actorEmail       String?
+  snapshots        MarketplaceSnapshot[]
+  discrepancies    MarketplaceDiscrepancy[]
+
+  @@index([marketplaceId, startedAt])
+}
+
+model MarketplaceSnapshot {
+  id             String   @id @default(cuid())
+  listingId      String
+  listing        MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  syncRunId      String
+  syncRun        MarketplaceSyncRun @relation(fields: [syncRunId], references: [id], onDelete: Restrict)
+  normalizedData Json
+  rawData        Json
+  comparisonData Json
+  payloadHash    String
+  createdAt      DateTime @default(now())
+
+  @@index([listingId, createdAt])
+  @@index([syncRunId])
+}
+
+model MarketplaceDiscrepancy {
+  id              String   @id @default(cuid())
+  listingId       String
+  listing         MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  syncRunId       String
+  syncRun         MarketplaceSyncRun @relation(fields: [syncRunId], references: [id], onDelete: Restrict)
+  fieldCode       String
+  masterValue     String
+  externalValue   String
+  severity        MarketplaceSeverity
+  status          MarketplaceDiscrepancyStatus @default(OPEN)
+  fingerprint     String   @unique
+  policyVersion   Int      @default(1)
+  firstDetectedAt DateTime @default(now())
+  lastDetectedAt  DateTime @default(now())
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([listingId, status, severity])
+  @@index([syncRunId])
+}
+
+model MarketplaceAuditLog {
+  id            String   @id @default(cuid())
+  marketplaceId String
+  marketplace   Marketplace @relation(fields: [marketplaceId], references: [id], onDelete: Restrict)
+  listingId     String?
+  listing       MarketplaceListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  carId         String?
+  car           Car?     @relation(fields: [carId], references: [id], onDelete: SetNull)
+  actorEmail    String
+  action        String
+  details       Json
+  createdAt     DateTime @default(now())
+
+  @@index([marketplaceId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([carId, createdAt])
+}
